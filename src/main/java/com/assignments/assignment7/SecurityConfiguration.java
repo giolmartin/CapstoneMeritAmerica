@@ -54,8 +54,9 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 //			.antMatchers("/admin").hasRole("ADMIN")
 //			.antMatchers("/user").hasAnyRole("USER", "ADMIN")
 //			.antMatchers("/").permitAll().and().formLogin();
-		http.csrf().disable()
-		.authorizeRequests().antMatchers("/authenticate", "/authenticate/createUser",
+		http.csrf().disable();
+		http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
+		http.authorizeRequests().antMatchers("/authenticate", "/authenticate/createUser",
 				"/v2/api-docs",
 				"/configuration/ui",
 				"/swagger-resources/**",
@@ -65,7 +66,7 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 		.anyRequest().authenticated()
 		.and().sessionManagement()
 		.sessionCreationPolicy(SessionCreationPolicy.STATELESS);
-		http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
+		
 	}
 
 	@Override
