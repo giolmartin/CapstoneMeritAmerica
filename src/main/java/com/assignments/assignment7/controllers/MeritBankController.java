@@ -3,29 +3,33 @@ package com.assignments.assignment7.controllers;
 import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
-//import javax.swing.plaf.synth.Region;
+import javax.swing.plaf.synth.Region;
 import javax.validation.Valid;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.assignments.assignment7.models.AccountHolder;
+import com.assignments.assignment7.models.AccountHoldersContactDetails;
 import com.assignments.assignment7.models.AuthenticationRequest;
 import com.assignments.assignment7.models.AuthenticationResponse;
 import com.assignments.assignment7.models.BankAccount;
@@ -51,49 +55,36 @@ import Exceptions.ExceedsCombinedBalanceLimitException;
 import Exceptions.NegativeBalanceException;
 import Exceptions.TooManyAccountsException;
 import Exceptions.TransactionFailureException;
-//import io.swagger.annotations.ApiOperation;
-//import io.swagger.annotations.Authorization;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.Authorization;
 
 @CrossOrigin(origins="http://localhost:3000")
 @RestController
-//@RequestMapping("/api")
+@RequestMapping("/api")
 public class MeritBankController {
 	Logger log = LoggerFactory.getLogger(this.getClass());
 	@Autowired
 	private MeritBankService meritBankService;
-	@Autowired
-	private AuthenticationManager authenticationManager;
-	@Autowired
-	private MyUserDetailsService myUserDetailsService;
-	@Autowired
-	private JwtUtil jwtTokenUtil;
 
-	@PreAuthorize("hasAuthority('admin')")
-	@PostMapping("/authenticate/createUser")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+
+	//@PreAuthorize("hasAuthority('admin')")
+	@PostMapping("/authenticate/createUser") //CREATE A USER
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
 		return meritBankService.registerUser(signUpRequest);
 	}
 
-	@RequestMapping(value = "/authenticate", method = RequestMethod.POST)
+	@RequestMapping(value = "/authenticate", method = RequestMethod.POST)//AUTHENTICATE LOGIN
 	public ResponseEntity<?> createAutheticationToken(@RequestBody AuthenticationRequest authenticationRequest)
 			throws Exception {
-		try {
-			authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
-					authenticationRequest.getUserName(), authenticationRequest.getPassword()));
-		} catch (Exception e) {
-			// TODO: handle exception
-			throw new Exception("incorrect username or password", e);
-		}
-		final UserDetails userDetails = myUserDetailsService.loadUserByUsername(authenticationRequest.getUserName());
-		final String jwt = jwtTokenUtil.generateToken(userDetails);
-		return ResponseEntity.ok(new AuthenticationResponse(jwt));
+
+		return meritBankService.createAutheticationToken(authenticationRequest);
 
 	}
-
+// START ADMIN NO NEED TO WORK WE ARE NOT SHOWING ADMIN PAGE
 	@PreAuthorize("hasAuthority('admin')")
 	@ResponseStatus(HttpStatus.CREATED)
-	@PostMapping(value = "/AccountHolders")
+	@PostMapping(value = "/AccountHolders") 
 	public AccountHolder addAccountHolder(@Valid @RequestBody AccountHolder accountHolder)
 			throws AccountNotFoundException {
 		return meritBankService.addAccountHolder(accountHolder);
@@ -101,7 +92,7 @@ public class MeritBankController {
 
 	@PreAuthorize("hasAuthority('admin')")
 	@ResponseStatus(HttpStatus.OK)
-	@GetMapping(value = "/AccountHolders")
+	@GetMapping(value = "/AccountHolders") 
 	public List<AccountHolder> getAccountHolders() {
 		return meritBankService.getAccountHolders();
 	}
@@ -114,14 +105,14 @@ public class MeritBankController {
 		// debug log - entering
 		try {
 			// use this only when someone logs in - to have record on log of login
-			//log.info("Entered /AccountHolders/{1} End Point");
+			log.info("Entered /AccountHolders/{1} End Point");
 			ah = meritBankService.getAccountHolderById(id);
 		} catch (Exception e) {
 			// error log - there's been an error + exception
-			//log.debug("getAccountById Started" + e);
+			log.debug("getAccountById Started" + e);
 			throw new AccountNotFoundException("Account id not found");
 		}
-		//log.info("Entered /AccountHolders/{1} End Point");
+		log.info("Entered /AccountHolders/{1} End Point");
 		// debug log - returning
 		return ah;
 	}
@@ -238,11 +229,12 @@ public class MeritBankController {
 		return meritBankService.getCDAccountsbyId(id);
 	}
 
+// END ADMIN NO NEED TO WORK WE ARE NOT SHOWING ADMIN PAGE
 	
     @PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
-	@GetMapping(value = "/Me")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@GetMapping(value = "/Me") //ACCOUNT HOLDER  OVERVIEW
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public AccountHolder getMyAccountInfo(HttpServletRequest request) {
 		return meritBankService.getMyAccountInfo(request);
 	}
@@ -251,16 +243,16 @@ public class MeritBankController {
 	
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
-	@GetMapping(value = "/Me/CheckingAccount")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@GetMapping(value = "/Me/CheckingAccount") //ACCOUNT HOLDER CHECKING ACCOUNT
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public CheckingAccount getMyCheckingAccounts(HttpServletRequest request) {
 		return meritBankService.getMyCheckingAccounts(request);
 	}
 	
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
-	@PostMapping(value = "/Me/CheckingAccount")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@PostMapping(value = "/Me/CheckingAccount") // ACCOUNT HOLDER CREATES AND ADDS MONEY
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public CheckingAccount postMyCheckingAccount(HttpServletRequest request,@Valid @RequestBody CheckingAccount checkingAccount)
 			throws ExceedsCombinedBalanceLimitException, TooManyAccountsException {
 		
@@ -269,8 +261,8 @@ public class MeritBankController {
 
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
-	@PostMapping(value = "/Me/SavingsAccounts")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@PostMapping(value = "/Me/SavingsAccounts") 
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public SavingsAccount postMySavingsAccounts(HttpServletRequest request, @Valid @RequestBody SavingsAccount savingsAccount) 
 			throws ExceedsCombinedBalanceLimitException, TooManyAccountsException{
 		return meritBankService.postMySavingsAccount(request, savingsAccount);
@@ -279,7 +271,7 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
 	@PostMapping(value = "/Me/IRA")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public IRA postMyIRA(HttpServletRequest request, @Valid @RequestBody IRA ira) 
 			throws ExceedsCombinedBalanceLimitException, TooManyAccountsException{
 		return meritBankService.postMyIRA(request, ira);
@@ -288,7 +280,7 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
 	@GetMapping(value = "/Me/IRA")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public IRA getMyIRA(HttpServletRequest request) 
 			throws ExceedsCombinedBalanceLimitException{
 		return meritBankService.getMyIRA(request);
@@ -297,7 +289,7 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
 	@PostMapping(value = "/Me/RothIRA")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public RothIRA postMyIRA(HttpServletRequest request, @Valid @RequestBody RothIRA RothIRA) 
 			throws ExceedsCombinedBalanceLimitException, TooManyAccountsException{
 		return meritBankService.postMyRothIRA(request, RothIRA);
@@ -306,7 +298,7 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
 	@PostMapping(value = "/Me/RolloverIRA")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public RolloverIRA postMyIRA(HttpServletRequest request, @Valid @RequestBody RolloverIRA RolloverIRA) 
 			throws ExceedsCombinedBalanceLimitException, TooManyAccountsException{
 		return meritBankService.postMyRolloverIRA(request, RolloverIRA);
@@ -315,7 +307,7 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
 	@GetMapping(value = "/Me/RothIRA")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public RothIRA getMyRothIRA(HttpServletRequest request) 
 			throws ExceedsCombinedBalanceLimitException{
 		return meritBankService.getMyRothIRA(request);
@@ -324,7 +316,7 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
 	@GetMapping(value = "/Me/RolloverIRA")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public RolloverIRA getMyRolloverIRA(HttpServletRequest request) 
 			throws ExceedsCombinedBalanceLimitException{
 		return meritBankService.getMyRolloverIRA(request);
@@ -333,7 +325,7 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
 	@GetMapping(value = "/Me/SavingsAccounts")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public SavingsAccount getMySavingsAccounts(HttpServletRequest request){
 		return meritBankService.getMySavingsAccounts(request);
 	}
@@ -341,7 +333,7 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
 	@PostMapping(value = "/Me/CDAccounts")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public CDAccount postMyCDAccounts(HttpServletRequest request, @Valid @RequestBody CDAccount cDAccount)
 	throws ExceedsCombinedBalanceLimitException, TooManyAccountsException {
 		return meritBankService.postMyCDAccounts(request, cDAccount);
@@ -350,7 +342,7 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
 	@GetMapping(value = "/Me/CDAccounts")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public List<CDAccount> getMyCDAccounts(HttpServletRequest request) {
 		return meritBankService.getMyCDAccount(request);
 	}
@@ -358,7 +350,7 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('admin')")
 	@ResponseStatus(HttpStatus.CREATED)
 	@PostMapping(value = "/CDOfferings")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public CDOffering postCDOffering(@Valid @RequestBody CDOffering cdOffering) {
 		return meritBankService.postCDOffering(cdOffering);
 	}
@@ -373,7 +365,7 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
 	@PostMapping(value = "/Me/DBACheckingAccount")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public DBAChecking postMyCheckingAccount(HttpServletRequest request,@Valid @RequestBody DBAChecking dbacheckingAccount)
 			throws ExceedsCombinedBalanceLimitException, TooManyAccountsException {
 		
@@ -382,7 +374,7 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
 	@GetMapping(value = "/Me/DBACheckingAccount")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public List<DBAChecking> getMyDBACheckingAccounts(HttpServletRequest request) {
 		return meritBankService.getMyDBACheckingAccounts(request);
 	}
@@ -390,7 +382,7 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
 	@PostMapping(value = "/Me/DBACheckingAccount/Deposit")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public BankAccount postMyDBACheckingDeposit(HttpServletRequest request
 			,@Valid @RequestBody DepositTransaction deposit)
 			throws ExceedsCombinedBalanceLimitException, NegativeBalanceException {
@@ -401,7 +393,7 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.OK)
 	@GetMapping(value = "/Me/DBACheckingAccount/Deposit")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public List<Transaction> getMyDeposit() {
 		return meritBankService.getMyDeposit("DBACheckingAccount");
 	}
@@ -409,7 +401,7 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
 	@PostMapping(value = "/Me/CheckingAccount/Deposit")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public BankAccount postMyCheckingDeposit(HttpServletRequest request,
 			@Valid @RequestBody DepositTransaction deposit)
 		throws ExceedsCombinedBalanceLimitException, NegativeBalanceException{
@@ -419,7 +411,7 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.OK)
 	@GetMapping(value = "/Me/CheckingAccount/Deposit")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public List<Transaction> getMyCheckingDeposit(){
 		return meritBankService.getMyDeposit("CheckingAccount");
 	}
@@ -427,7 +419,7 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
 	@PostMapping(value = "/Me/SavingsAccount/Deposit")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public BankAccount postMySavingsDeposit(HttpServletRequest request,
 			@Valid @RequestBody DepositTransaction deposit)
 		throws ExceedsCombinedBalanceLimitException, NegativeBalanceException{
@@ -437,7 +429,7 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.OK)
 	@GetMapping(value = "/Me/SavingsAccount/Deposit")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public List<Transaction> getMySavingsDeposit(){
 		return meritBankService.getMyDeposit("SavingsAccount");
 	}
@@ -445,7 +437,7 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
 	@PostMapping(value = "/Me/CDAccount/Deposit")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public BankAccount postMyCDAccountDeposit(HttpServletRequest request,
 			@Valid @RequestBody DepositTransaction deposit)
 		throws ExceedsCombinedBalanceLimitException, NegativeBalanceException{
@@ -455,7 +447,7 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.OK)
 	@GetMapping(value = "/Me/CDAccount/Deposit")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public List<Transaction> getMyCDAccountDeposit(){
 		return meritBankService.getMyDeposit("CDAccount");
 	}
@@ -463,7 +455,7 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
 	@PostMapping(value = "/Me/IRA/Deposit")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public BankAccount postMyIRADeposit(HttpServletRequest request,
 			@Valid @RequestBody DepositTransaction deposit)
 		throws ExceedsCombinedBalanceLimitException, NegativeBalanceException{
@@ -473,7 +465,7 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.OK)
 	@GetMapping(value = "/Me/IRA/Deposit")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public List<Transaction> getMyIRADeposit(){
 		return meritBankService.getMyDeposit("IRA");
 	}
@@ -481,7 +473,7 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
 	@PostMapping(value = "/Me/RothIRA/Deposit")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public BankAccount postMyRothIRADeposit(HttpServletRequest request,
 			@Valid @RequestBody DepositTransaction deposit)
 		throws ExceedsCombinedBalanceLimitException, NegativeBalanceException{
@@ -491,7 +483,7 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.OK)
 	@GetMapping(value = "/Me/RothIRA/Deposit")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public List<Transaction> getMyRothIRADeposit(){
 		return meritBankService.getMyDeposit("RothIRA");
 	}
@@ -499,7 +491,7 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
 	@PostMapping(value = "/Me/RolloverIRA/Deposit")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public BankAccount postMyRolloverIRADeposit(HttpServletRequest request,
 			@Valid @RequestBody DepositTransaction deposit)
 		throws ExceedsCombinedBalanceLimitException, NegativeBalanceException{
@@ -509,7 +501,7 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.OK)
 	@GetMapping(value = "/Me/RolloverIRA/Deposit")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public List<Transaction> getMyRolloverIRADeposit(){
 		return meritBankService.getMyDeposit("RolloverIRA");
 	}
@@ -519,7 +511,7 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
 	@PostMapping(value = "/Me/DBACheckingAccount/Withdraw")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public BankAccount postMyDBACheckingWithdraw(HttpServletRequest request
 			,@Valid @RequestBody WithdrawTransaction withdraw)
 			throws ExceedsCombinedBalanceLimitException, NegativeBalanceException {
@@ -529,7 +521,7 @@ public class MeritBankController {
 	
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.OK)
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	@GetMapping(value = "/Me/DBACheckingAccount/Withdraw")
 	public List<Transaction> getMyWithdrawl() {
 		return meritBankService.getMyWithdrawl("DBACheckingAccount");
@@ -537,7 +529,7 @@ public class MeritBankController {
 	
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	@PostMapping(value = "/Me/CheckingAccount/Withdraw")
 	public BankAccount postMyCheckingWithdrawl(HttpServletRequest request,
 			@Valid @RequestBody WithdrawTransaction withdraw)
@@ -547,7 +539,7 @@ public class MeritBankController {
 	
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.OK)
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	@GetMapping(value = "/Me/CheckingAccount/Withdraw")
 	public List<Transaction> getMyCheckingWithdrawl(){
 		return meritBankService.getMyWithdrawl("CheckingAccount");
@@ -555,7 +547,7 @@ public class MeritBankController {
 	
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	@PostMapping(value = "/Me/SavingsAccount/Withdraw")
 	public BankAccount postMySavingsWithdrawl(HttpServletRequest request,
 			@Valid @RequestBody WithdrawTransaction withdraw)
@@ -565,7 +557,7 @@ public class MeritBankController {
 	
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.OK)
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	@GetMapping(value = "/Me/SavingsAccount/Withdraw")
 	public List<Transaction> getMySavingsWithdrawl(){
 		return meritBankService.getMyWithdrawl("SavingsAccount");
@@ -573,7 +565,7 @@ public class MeritBankController {
 	
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	@PostMapping(value = "/Me/CDAccount/Withdraw")
 	public BankAccount postMyCDAccountWithdrawl(HttpServletRequest request,
 			@Valid @RequestBody WithdrawTransaction withdraw)
@@ -583,7 +575,7 @@ public class MeritBankController {
 	
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.OK)
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	@GetMapping(value = "/Me/CDAccount/Withdraw")
 	public List<Transaction> getMyCDAccountWithdrawl(){
 		return meritBankService.getMyWithdrawl("CDAccount");
@@ -591,7 +583,7 @@ public class MeritBankController {
 	
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	@PostMapping(value = "/Me/IRA/Withdraw")
 	public BankAccount postMyIRAWithdrawl(HttpServletRequest request,
 			@Valid @RequestBody WithdrawTransaction withdraw)
@@ -601,7 +593,7 @@ public class MeritBankController {
 	
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.OK)
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	@GetMapping(value = "/Me/IRA/Withdraw")
 	public List<Transaction> getMyIRAWithdrawl(){
 		return meritBankService.getMyWithdrawl("IRA");
@@ -609,7 +601,7 @@ public class MeritBankController {
 	
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	@PostMapping(value = "/Me/RothIRA/Withdraw")
 	public BankAccount postMyRothIRAWithdrawl(HttpServletRequest request,
 			@Valid @RequestBody WithdrawTransaction withdraw)
@@ -619,7 +611,7 @@ public class MeritBankController {
 	
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.OK)
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	@GetMapping(value = "/Me/RothIRA/Withdraw")
 	public List<Transaction> getMyRothIRAWithdrawl(){
 		return meritBankService.getMyWithdrawl("RothIRA");
@@ -627,7 +619,7 @@ public class MeritBankController {
 	
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	@PostMapping(value = "/Me/RolloverIRA/Withdraw")
 	public BankAccount postMyRolloverIRAWithdrawl(HttpServletRequest request,
 			@Valid @RequestBody WithdrawTransaction withdraw)
@@ -637,7 +629,7 @@ public class MeritBankController {
 	
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.OK)
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	@GetMapping(value = "/Me/RolloverIRA/Withdraw")
 	public List<Transaction> getMyRolloverIRAWithdrawl(){
 		return meritBankService.getMyWithdrawl("RolloverIRA");
@@ -648,7 +640,7 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.CREATED)
 	@PostMapping(value = "/Me/Transfer")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public List<BankAccount> postMyDBACheckingTransfer(HttpServletRequest request
 			,@Valid @RequestBody TransferTransaction transfer)
 			throws ExceedsCombinedBalanceLimitException, NegativeBalanceException, TransactionFailureException {
@@ -659,9 +651,16 @@ public class MeritBankController {
 	@PreAuthorize("hasAuthority('AccountHolder')")
 	@ResponseStatus(HttpStatus.OK)
 	@GetMapping(value = "/Me/Transfer")
-//	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
+	@ApiOperation(value = "", authorizations = { @Authorization(value="jwtToken") })
 	public List<Transaction> getMyTransfer() {
 		return meritBankService.getMyWithdrawl("DBACheckingAccount");
+	}
+	
+	@RequestMapping(value = "/Me/Delete/{id}", method = RequestMethod.DELETE)//AUTHENTICATE LOGIN
+	public List<BankAccount> deleteAccountByID(HttpServletRequest request, @PathVariable Integer id) {
+
+		return meritBankService.deleteAccountByID(request, id);
+
 	}
 	
 }

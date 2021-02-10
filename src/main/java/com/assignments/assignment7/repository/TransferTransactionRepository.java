@@ -10,4 +10,5 @@ import com.assignments.assignment7.models.TransferTransaction;
 public interface TransferTransactionRepository extends JpaRepository<TransferTransaction, Integer>{
 
 	List<Transaction> findByLocation(String location);
+	
 }

@@ -1,4 +1,3 @@
-
 package com.assignments.assignment7.models;
 
 import javax.persistence.CascadeType;
